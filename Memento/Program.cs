@@ -1,4 +1,4 @@
-﻿// Паттерн Снимок
+﻿// Паттерн Снимок - behavioral design pattern
 //
 // Назначение: Позволяет делать снимки состояния объектов, не раскрывая
 // подробностей их реализации. Затем снимки можно использовать, чтобы
@@ -11,191 +11,105 @@ using System.Threading;
 
 namespace Memento
 {
-    // Создатель содержит некоторое важное состояние, которое может со временем
-    // меняться. Он также объявляет метод сохранения состояния внутри снимка и
-    // метод восстановления состояния из него.
-    class Originator
-    {
-        // Для удобства состояние создателя хранится внутри одной переменной.
-        private string _state;
-
-        public Originator(string state)
-        {
-            this._state = state;
-            Console.WriteLine("Originator: My initial state is: " + state);
-        }
-
-        // Бизнес-логика Создателя может повлиять на его внутреннее состояние.
-        // Поэтому клиент должен выполнить резервное копирование состояния с
-        // помощью метода save перед запуском методов бизнес-логики.
-        public void DoSomething()
-        {
-            Console.WriteLine("Originator: I'm doing something important.");
-            this._state = this.GenerateRandomString(30);
-            Console.WriteLine($"Originator: and my state has changed to: {_state}");
-        }
-
-        private string GenerateRandomString(int length = 10)
-        {
-            string allowedSymbols = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-            string result = string.Empty;
-
-            while (length > 0)
-            {
-                result += allowedSymbols[new Random().Next(0, allowedSymbols.Length)];
-
-                Thread.Sleep(12);
-
-                length--;
-            }
-
-            return result;
-        }
-
-        // Сохраняет текущее состояние внутри снимка.
-        public IMemento Save()
-        {
-            return new ConcreteMemento(this._state);
-        }
-
-        // Восстанавливает состояние Создателя из объекта снимка.
-        public void Restore(IMemento memento)
-        {
-            if (!(memento is ConcreteMemento))
-            {
-                throw new Exception("Unknown memento class " + memento.ToString());
-            }
-
-            this._state = memento.GetState();
-            Console.Write($"Originator: My state has changed to: {_state}");
-        }
-    }
-
-    // Интерфейс Снимка предоставляет способ извлечения метаданных снимка, таких
-    // как дата создания или название. Однако он не раскрывает состояние
-    // Создателя.
-    public interface IMemento
-    {
-        string GetName();
-
-        string GetState();
-
-        DateTime GetDate();
-    }
-
-    // Конкретный снимок содержит инфраструктуру для хранения состояния
-    // Создателя.
-    class ConcreteMemento : IMemento
-    {
-        private string _state;
-
-        private DateTime _date;
-
-        public ConcreteMemento(string state)
-        {
-            this._state = state;
-            this._date = DateTime.Now;
-        }
-
-        // Создатель использует этот метод, когда восстанавливает своё
-        // состояние.
-        public string GetState()
-        {
-            return this._state;
-        }
-
-        // Остальные методы используются Опекуном для отображения метаданных.
-        public string GetName()
-        {
-            return $"{this._date} / ({this._state.Substring(0, 9)})...";
-        }
-
-        public DateTime GetDate()
-        {
-            return this._date;
-        }
-    }
-
-    // Опекун не зависит от класса Конкретного Снимка. Таким образом, он не
-    // имеет доступа к состоянию создателя, хранящемуся внутри снимка. Он
-    // работает со всеми снимками через базовый интерфейс Снимка.
-    class Caretaker
-    {
-        private List<IMemento> _mementos = new List<IMemento>();
-
-        private Originator _originator = null;
-
-        public Caretaker(Originator originator)
-        {
-            this._originator = originator;
-        }
-
-        public void Backup()
-        {
-            Console.WriteLine("\nCaretaker: Saving Originator's state...");
-            this._mementos.Add(this._originator.Save());
-        }
-
-        public void Undo()
-        {
-            if (this._mementos.Count == 0)
-            {
-                return;
-            }
-
-            var memento = this._mementos.Last();
-            this._mementos.Remove(memento);
-
-            Console.WriteLine("Caretaker: Restoring state to: " + memento.GetName());
-
-            try
-            {
-                this._originator.Restore(memento);
-            }
-            catch (Exception)
-            {
-                this.Undo();
-            }
-        }
-
-        public void ShowHistory()
-        {
-            Console.WriteLine("Caretaker: Here's the list of mementos:");
-
-            foreach (var memento in this._mementos)
-            {
-                Console.WriteLine(memento.GetName());
-            }
-        }
-    }
-
     class Program
     {
         static void Main(string[] args)
         {
             // Клиентский код.
-            Originator originator = new Originator("Super-duper-super-puper-super.");
-            Caretaker caretaker = new Caretaker(originator);
+            Originator<StateObject> current = new Originator<StateObject>();
+            current.SetState(new StateObject() { Id = 1, Name = "Object 1" });
+            CareTaker<StateObject>.SaveState(current);
+            current.ShowState();
 
-            caretaker.Backup();
-            originator.DoSomething();
+            current.SetState(new StateObject() { Id = 2, Name = "Object 2" });
+            CareTaker<StateObject>.SaveState(current);
+            current.ShowState();
 
-            caretaker.Backup();
-            originator.DoSomething();
+            current.SetState(new StateObject() { Id = 3, Name = "Object 3" });
+            CareTaker<StateObject>.SaveState(current);
+            current.ShowState();
 
-            caretaker.Backup();
-            originator.DoSomething();
+            CareTaker<StateObject>.RestoreState(current, 0);
+            current.ShowState();
+        }
 
-            Console.WriteLine();
-            caretaker.ShowHistory();
+        // это объект для хранения состояния в мементо
+        // требует реализации ICloneable для обеспечения deep copy, иначе
+        // мементо будет заполнен shallow copys c ссылками на эту же область памяти (на один и тот же объект)
+        public class StateObject : ICloneable
+        {
+            public int Id;
+            public string Name;
 
-            Console.WriteLine("\nClient: Now, let's rollback!\n");
-            caretaker.Undo();
+            public override string ToString()
+            {
+                return $"Id = {Id} Name = {Name}";
+            }
 
-            Console.WriteLine("\n\nClient: Once more!\n");
-            caretaker.Undo();
+            public object Clone()
+            {
+                return new StateObject { Id = this.Id, Name = this.Name };
+            }
+        }
 
-            Console.WriteLine();
+        // это обобщённая структура мементо для обёртывания объектов для хранения состояния
+        public class Memento<T> where T : ICloneable
+        {
+            T StateObj;
+
+            public T GetState()
+            {
+                return StateObj;
+            }
+            public void SetState(T stateObj)
+            {
+                StateObj = (T)stateObj.Clone();
+            }
+        }
+
+        // это обобщённая структура для обёртывания самого текущего объекта состояния с опцией восстановления объекта состояния 
+        public class Originator<T> where T : ICloneable
+        {
+            T StateObj;
+
+            public Memento<T> CreateMemento()
+            {
+                var memento = new Memento<T>();
+                memento.SetState(StateObj);
+                return memento;
+            }
+
+            public void RestoreMemento(Memento<T> memento)
+            {
+                StateObj = memento.GetState();
+            }
+
+            public void SetState(T stateObj)
+            {
+                StateObj = stateObj;
+            }
+
+            public void ShowState()
+            {
+                Console.WriteLine(StateObj);
+            }
+        }
+
+        // это статическая структура которая управляет объектами состояний через список мементо
+        // клиент использует эту структуру для сохранения и восстановления состояния
+        public static class CareTaker<T> where T : ICloneable
+        {
+            static List<Memento<T>> mementos = new List<Memento<T>>();
+
+            public static void SaveState(Originator<T> originator)
+            {
+                mementos.Add(originator.CreateMemento());
+            }
+
+            public static void RestoreState(Originator<T> originator, int checkpoint)
+            {
+                originator.RestoreMemento(mementos[checkpoint]);
+            }
         }
     }
 }
